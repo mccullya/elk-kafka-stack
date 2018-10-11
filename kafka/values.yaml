@@ -141,7 +141,7 @@ external:
 
   # create an A record for each statefulset pod
   distinct: false
-  enabled: false
+  enabled: true
   servicePort: 19092
   firstListenerPort: 31090
   domain: cluster.local
