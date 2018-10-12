@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kafka.fullname" . }}--local
+  labels:
+    app: {{ include "kafka.fullname" . }}
+    chart: "{{.Chart.Name }}-{{.Chart.Version }}"
+    release: "{{.Release.Name}}"
+    heritage: "{{.Release.Service}}"
+spec:
+  selector:
+    app:  kafka
+    release: {{ .Release.Name }}
+  type: NodePort
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: 9092
+      protocol: TCP

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "zookeeper.fullname" . }}--local
+  labels:
+    app: {{ template "zookeeper.fullname" . }}
+    chart: "{{.Chart.Name }}-{{.Chart.Version }}"
+    release: "{{.Release.Name}}"
+    heritage: "{{.Release.Service}}"
+    microenv: "{{.Values.envName}}"
+spec:
+  selector:
+    app:  zookeeper
+  type: NodePort
+  ports:
+  - name: zookeeper-client
+    port: 2181
