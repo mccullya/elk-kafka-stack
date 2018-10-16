@@ -1,0 +1,1 @@
+FROM confluentinc/cp-kafka-rest:4.1.2-1

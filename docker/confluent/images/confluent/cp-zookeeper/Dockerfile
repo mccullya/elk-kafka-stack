@@ -1,0 +1,1 @@
+FROM confluentinc/cp-zookeeper:4.1.2-1

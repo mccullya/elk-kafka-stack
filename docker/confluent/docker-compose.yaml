@@ -1,0 +1,193 @@
+version: '3.5'
+services:
+  zookeeper:
+    build:
+      context: images/confluent/cp-zookeeper
+    environment:
+    - ZOOKEEPER_CLIENT_PORT=2181
+    networks:
+    - confluent
+    container_name: zookeeper
+  kafka:
+    build:
+      context: images/confluent/cp-kafka
+    environment:
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+    networks:
+    - confluent
+    ports:
+    - 8081:8081
+    volumes:
+    - ./files/kafka/server.properties:/etc/kafka/server.properties
+    container_name: kafka
+    depends_on:
+      - zookeeper
+  schema-regsitry:
+    build:
+      context: images/confluent/cp-schema-registry
+    environment:
+    - SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL=zookeeper:2181
+    - SCHEMA_REGISTRY_HOST_NAME=schema-registry
+    - SCHEMA_REGISTRY_LISTENERS=http://0.0.0.0:8081
+    networks:
+    - confluent
+    container_name: schema-registry
+    depends_on:
+    - kafka
+    - zookeeper
+  kafka-rest:
+    build:
+      context: images/confluent/cp-kafka-rest
+    environment:
+    - KAFKA_REST_ZOOKEEPER_CONNECT=zookeeper:2181
+    - KAFKA_REST_LISTENERS=http://0.0.0.0:8082
+    - KAFKA_REST_SCHEMA_REGISTRY_URL=http://schema-registry:8081
+    - KAFKA_REST_HOST_NAME=kafka-rest
+    networks:
+    - confluent
+    container_name: kafka-rest
+    depends_on:
+      - kafka
+      - zookeeper
+      - schema-regsitry
+  control-center:
+    build:
+      context: images/confluent/cp-enterprise-control-center
+    ports:
+      - 9021:9021
+    environment:
+    - CONTROL_CENTER_ZOOKEEPER_CONNECT=zookeeper:2181
+    - CONTROL_CENTER_BOOTSTRAP_SERVERS=kafka:9092
+    - CONTROL_CENTER_REPLICATION_FACTOR=1
+    - CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS=1
+    - CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS=1
+    - CONTROL_CENTER_STREAMS_NUM_STREAM_THREADS=2
+    - CONTROL_CENTER_CONNECT_CLUSTER=http://kafka-connect:8082
+#    volumes:
+#    - /tmp/control-center/data:/var/lib/confluent-control-center
+    networks:
+    - confluent
+    ulimits:
+      nofile:
+        soft: 16384
+        hard: 16384
+    container_name: control-center
+    depends_on:
+      - kafka
+      - zookeeper
+      - schema-regsitry
+      - kafka-rest
+#  kafka-connect:
+#    build:
+#      context: images/confluent/cp-kafka-connect
+#    restart: always
+#    environment:
+#    - CONNECT_PRODUCER_INTERCEPTOR_CLASSES=io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor
+#    - CONNECT_CONSUMER_INTERCEPTOR_CLASSES=io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor
+#    - CONNECT_BOOTSTRAP_SERVERS=kafka:9092
+#    - CONNECT_REST_PORT=8082
+#    - CONNECT_GROUP_ID="home-office-dummy-topic"
+#    - CONNECT_CONFIG_STORAGE_TOPIC="quickstart-config"
+#    - CONNECT_OFFSET_STORAGE_TOPIC="quickstart-offsets"
+#    - CONNECT_STATUS_STORAGE_TOPIC="quickstart-status"
+#    - CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR=1
+#    - CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR=1
+#    - CONNECT_STATUS_STORAGE_REPLICATION_FACTOR=1
+#    - CONNECT_KEY_CONVERTER="org.apache.kafka.connect.json.JsonConverter"
+#    - CONNECT_VALUE_CONVERTER="org.apache.kafka.connect.json.JsonConverter"
+#    - CONNECT_INTERNAL_KEY_CONVERTER="org.apache.kafka.connect.json.JsonConverter"
+#    - CONNECT_INTERNAL_VALUE_CONVERTER="org.apache.kafka.connect.json.JsonConverter"
+#    - CONNECT_REST_ADVERTISED_HOST_NAME="kafka-rest"
+#    - CONNECT_LOG4J_ROOT_LOGLEVEL=DEBUG
+#    - CONNECT_PLUGIN_PATH=/usr/share/java
+#    - CONNECT_REST_HOST_NAME="kafka-rest"
+#    volumes:
+#      - /tmp/quickstart/file:/tmp/home-office-dummy-topic
+#    networks:
+#    - confluent
+#    labels:
+#    - "traefik.frontend.rule=Host:kafka-connect.local"
+#    depends_on:
+#      - zookeeper
+#      - kafka
+#      - kafka-rest
+#      - schema-regsitry
+#    container_name: kafka-connect
+  kafka-create-topics:
+    build:
+      context: images/confluent/cp-kafka
+    networks:
+    - confluent
+    depends_on:
+    - zookeeper
+    - kafka
+    - kafka-rest
+    - schema-regsitry
+    hostname: kafka-create-topics
+    volumes:
+      - ./files:/tmp/files
+    command: "sh /tmp/files/create_topics.sh"
+    environment:
+      KAFKA_BROKER_ID: ignored
+      KAFKA_ZOOKEEPER_CONNECT: ignored
+    container_name: topic-generator
+#  logstash:
+#    build:
+#      context: images/elk/logstash/
+#    networks:
+#    - confluent
+#    volumes:
+#    - ./files/elk/logstash/config:/usr/share/logstash/config:ro
+#    - ./files/elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+#    depends_on:
+#    - elasticsearch
+#  elasticsearch:
+#    build:
+#      context: images/elk/elasticsearch/
+#    environment:
+#    - bootstrap.memory_lock=true
+#    - "ES_JAVA_OPTS=-Xms16g -Xmx16g"
+#    networks:
+#    - confluent
+#    volumes:
+#    - ./files/elk/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+#    - type: volume
+#      source: elastic_data
+#      target: /usr/share/elasticsearch/data
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#  kibana:
+#    build:
+#      context: images/elk/kibana/
+#    environment:
+#    - DEBUG=1
+#    networks:
+#    - confluent
+#    volumes:
+#    - ./files/elk/kibana/config:/usr/share/kibana/config:ro
+#    depends_on:
+#    - elasticsearch
+#  filebeat:
+#    build:
+#      context: images/elk/filebeat/
+#    environment:
+#    - DEBUG=1
+#    networks:
+#    - confluent
+#    volumes:
+#    - ./files/elk/kibana/config:/usr/share/kibana/config:ro
+#    user: root
+#    command: filebeat -e -strict.perms=false
+#
+#volumes:
+#  elastic_data:
+#    name: elastic_data
+
+networks:
+  confluent:
+    name: confluent
+    external: false
