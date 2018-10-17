@@ -134,59 +134,67 @@ services:
       KAFKA_BROKER_ID: ignored
       KAFKA_ZOOKEEPER_CONNECT: ignored
     container_name: topic-generator
-#  logstash:
-#    build:
-#      context: images/elk/logstash/
-#    networks:
-#    - confluent
-#    volumes:
-#    - ./files/elk/logstash/config:/usr/share/logstash/config:ro
-#    - ./files/elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
-#    depends_on:
-#    - elasticsearch
-#  elasticsearch:
-#    build:
-#      context: images/elk/elasticsearch/
-#    environment:
-#    - bootstrap.memory_lock=true
-#    - "ES_JAVA_OPTS=-Xms16g -Xmx16g"
-#    networks:
-#    - confluent
-#    volumes:
-#    - ./files/elk/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
-#    - type: volume
-#      source: elastic_data
-#      target: /usr/share/elasticsearch/data
-#    ulimits:
-#      memlock:
-#        soft: -1
-#        hard: -1
-#  kibana:
-#    build:
-#      context: images/elk/kibana/
-#    environment:
-#    - DEBUG=1
-#    networks:
-#    - confluent
-#    volumes:
-#    - ./files/elk/kibana/config:/usr/share/kibana/config:ro
-#    depends_on:
-#    - elasticsearch
-#  filebeat:
-#    build:
-#      context: images/elk/filebeat/
-#    environment:
-#    - DEBUG=1
-#    networks:
-#    - confluent
-#    volumes:
-#    - ./files/elk/kibana/config:/usr/share/kibana/config:ro
-#    user: root
-#    command: filebeat -e -strict.perms=false
-#
-#volumes:
-#  elastic_data:
-#    name: elastic_data
+  logstash:
+    build:
+      context: images/elk/logstash/
+    networks:
+    - confluent
+    volumes:
+    - ./files/elk/logstash/config:/usr/share/logstash/config:ro
+    - ./files/elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    depends_on:
+    - elasticsearch
+  elasticsearch:
+    build:
+      context: images/elk/elasticsearch/
+    networks:
+    - confluent
+    volumes:
+    - ./files/elk/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+    - type: volume
+      source: elastic_data
+      target: /usr/share/elasticsearch/data
+  kibana:
+    build:
+      context: images/elk/kibana/
+    environment:
+    - DEBUG=1
+    ports:
+    - 5601:5601
+    networks:
+    - confluent
+    volumes:
+    - ./files/elk/kibana/config:/usr/share/kibana/config:ro
+    depends_on:
+    - elasticsearch
+  filebeat:
+    build:
+      context: images/elk/filebeat/
+    environment:
+    - DEBUG=1
+    networks:
+    - confluent
+    volumes:
+    - ./files/elk/filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /var/lib/docker/containers:/var/lib/docker/containers
+    user: root
+    command: filebeat -e -strict.perms=false
+    depends_on:
+      - logstash
+      - elasticsearch
+  portainer:
+    image: portainer/portainer
+    ports:
+    - 9000:9000
+    networks:
+    - confluent
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  elastic_data:
+    name: elastic_data
 
 networks:
   confluent:
