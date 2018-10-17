@@ -19,6 +19,7 @@ services:
     - confluent
     ports:
     - 8081:8081
+    - 9092:9092
     volumes:
     - ./files/kafka/server.properties:/etc/kafka/server.properties
     container_name: kafka
